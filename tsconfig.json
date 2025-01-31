@@ -1,11 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "ES2020",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "lib": ["ES2020"],
     "skipLibCheck": true,
     "outDir": "./dist",
-    "moduleResolution": "Node",
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -20,9 +20,7 @@
   },
   "ts-node": {
     "esm": true,
-    "experimentalSpecifiers": true,
-    "transpileOnly": true,
-    "skipProject": true
+    "experimentalSpecifiers": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules"]

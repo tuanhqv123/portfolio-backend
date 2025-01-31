@@ -3,12 +3,12 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import session from "express-session";
 import passport from "passport";
-import initializePassport from "./config/passport";
-import authRoutes from "./routes/auth";
-import passwordRoutes from "./routes/password";
-import blogRoutes from "./routes/blog";
-import { connectToDatabase } from "./config/database";
-import { env } from "./config/env";
+import initializePassport from "./config/passport.js";
+import authRoutes from "./routes/auth.js";
+import passwordRoutes from "./routes/password.js";
+import blogRoutes from "./routes/blog.js";
+import { connectToDatabase } from "./config/database.js";
+import { env } from "./config/env.js";
 
 const app: Express = express();
 
