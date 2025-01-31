@@ -4,9 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js",
-    "postinstall": "tsc"
+    "build": "npx tsc",
+    "start": "node dist/server.js"
   },
   "dependencies": {
     "@types/bcrypt": "^5.0.2",
@@ -43,7 +42,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.9",
-    "tsconfig-paths": "^4.2.0"
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.3.3"
   },
   "engines": {
     "node": "18.x"
