@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "npx tsc",
+    "build": "node ./node_modules/typescript/bin/tsc",
     "start": "node dist/server.js"
   },
   "dependencies": {
@@ -20,7 +20,6 @@
     "@types/passport": "^1.0.17",
     "@types/passport-google-oauth20": "^2.0.16",
     "@types/passport-jwt": "^3.0.13",
-    "typescript": "^5.3.3",
     "ts-node": "^10.9.2",
     "tsx": "^4.7.0",
     "axios": "^1.7.9",
