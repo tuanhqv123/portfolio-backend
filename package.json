@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "npx tsc",
+    "build": "tsc",
     "start": "node dist/server.js",
     "postinstall": "tsc"
   },
@@ -46,7 +46,7 @@
     "tsconfig-paths": "^4.2.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "18.x"
   },
   "main": "server.js",
   "keywords": [],
