@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { env } from "./env";
+import { env } from "./env.js";
 
 const createTransporter = () => {
   // Kiểm tra các biến môi trường bắt buộc

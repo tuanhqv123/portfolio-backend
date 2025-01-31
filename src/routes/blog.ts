@@ -1,6 +1,7 @@
+import express from "express";
 import { Router, Request, Response } from "express";
 import { ObjectId } from "mongodb";
-import { connectToDatabase } from "../db";
+import { connectToDatabase } from "../db.js";
 import axios from "axios";
 import * as cheerio from "cheerio";
 import { chromium } from "playwright";

@@ -1,8 +1,8 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import { User } from "../models/User";
-import { env } from "./env";
-import { sendWelcomeEmail } from "./email";
+import { User } from "../models/User.js";
+import { env } from "./env.js";
+import { sendWelcomeEmail } from "./email.js";
 
 const initializePassport = () => {
   // Serialize user for the session
