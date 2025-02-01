@@ -12,6 +12,7 @@ const requiredEnvVars = [
   "EMAIL_PASS",
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
+  "GOOGLE_OAUTH_REDIRECT_URL"
 ] as const;
 
 for (const envVar of requiredEnvVars) {
