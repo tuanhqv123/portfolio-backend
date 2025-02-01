@@ -2,6 +2,7 @@ import express, { Express, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import session from "express-session";
+import MongoStore from "connect-mongo";
 import passport from "passport";
 import initializePassport from "./config/passport.js";
 import authRoutes from "./routes/auth.js";
@@ -41,6 +42,10 @@ app.use(
     secret: env.jwt.secret,
     resave: false,
     saveUninitialized: false,
+    store: MongoStore.create({
+      mongoUrl: env.mongodb.uri,
+      ttl: 24 * 60 * 60, // 1 day
+    }),
     cookie: {
       secure: env.nodeEnv === "production",
       sameSite: env.nodeEnv === "production" ? "none" : "lax",
