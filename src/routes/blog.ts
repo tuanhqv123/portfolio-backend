@@ -62,7 +62,10 @@ async function fetchWithRetry(
 }
 
 async function getVideoUrlsFromPage(url: string): Promise<Map<string, string>> {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({
+    headless: true,
+    executablePath: "/usr/bin/chromium-browser", // 👈 Sử dụng trình duyệt có sẵn
+  });
   const videoMap = new Map<string, string>();
 
   try {
