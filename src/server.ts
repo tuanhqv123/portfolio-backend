@@ -19,7 +19,7 @@ console.log("Passport initialized");
 
 // CORS configuration
 const corsOptions = {
-  origin: env.FRONTEND_URL,
+  origin: env.frontend.url,
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: [
