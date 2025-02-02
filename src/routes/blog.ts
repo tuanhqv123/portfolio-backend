@@ -4,7 +4,7 @@ import { ObjectId } from "mongodb";
 import { connectToDatabase } from "../db.js";
 import axios from "axios";
 import * as cheerio from "cheerio";
-import { chromium } from "playwright-core";
+import { chromium } from "playwright";
 
 const router = Router();
 
@@ -64,8 +64,13 @@ async function fetchWithRetry(
 async function getVideoUrlsFromPage(url: string): Promise<Map<string, string>> {
   const browser = await chromium.launch({
     headless: true, // Luôn chạy headless trên server
-    args: ["--no-sandbox", "--disable-setuid-sandbox"], // Cấu hình cần thiết cho Render
-  });
+    args: [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+  ],
+});
   const videoMap = new Map<string, string>();
 
   try {
