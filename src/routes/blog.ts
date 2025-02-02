@@ -64,7 +64,13 @@ async function fetchWithRetry(
 async function getVideoUrlsFromPage(url: string): Promise<Map<string, string>> {
   const browser = await chromium.launch({
     headless: true, // Luôn chạy headless trên server
-    args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage", // Giảm memory usage
+      "--disable-accelerated-2d-canvas",
+      "--disable-gpu"
+    ]
 });
   const videoMap = new Map<string, string>();
 
