@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "preinstall": "npx playwright install --with-deps chromium",
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js"
@@ -36,7 +35,6 @@
     "passport": "^0.6.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
-    "playwright": "^1.50.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.7.0"
   },
