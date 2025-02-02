@@ -4,7 +4,6 @@ import { ObjectId } from "mongodb";
 import { connectToDatabase } from "../db.js";
 import axios from "axios";
 import * as cheerio from "cheerio";
-import { chromium } from "playwright";
 
 const router = Router();
 
@@ -62,129 +61,96 @@ async function fetchWithRetry(
 }
 
 async function getVideoUrlsFromPage(url: string): Promise<Map<string, string>> {
-  const browser = await chromium.launch({
-    headless: true, // Luôn chạy headless trên server
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage", // Giảm memory usage
-      "--disable-accelerated-2d-canvas",
-      "--disable-gpu"
-    ]
-});
   const videoMap = new Map<string, string>();
-
+  
   try {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-
-    await page.goto(url, { waitUntil: "networkidle" });
-    await page.waitForLoadState("domcontentloaded");
-
-    // Lấy tất cả thông tin video trước
-    const videoInfos = await page.$$eval(
-      ".ThreadSummary_paragraph__Dc48l .ThreadSummary_imageWrapper__bW8PL",
-      (wrappers) => {
-        return wrappers
-          .filter((wrapper) => {
-            const overlay = wrapper.querySelector(
-              ".ThreadSummary_videoOverlay__iQdee"
-            );
-            const img = wrapper.querySelector(".ThreadSummary_image__C1Oqn");
-            return overlay && img;
-          })
-          .map((wrapper, index) => {
-            const img = wrapper.querySelector(".ThreadSummary_image__C1Oqn");
-            return {
-              thumbnail: img?.getAttribute("src") || null,
-              index,
-            };
-          });
-      }
-    );
-
-    console.log(`Found ${videoInfos.length} potential videos`);
-
-    // Xử lý từng video
-    for (const videoInfo of videoInfos) {
-      if (!videoInfo.thumbnail) continue;
-
-      try {
-        console.log(
-          `Processing video ${videoInfo.index + 1}/${videoInfos.length}`
-        );
-
-        // Tìm và click vào overlay tương ứng với thumbnail
-        const overlay = await page.waitForSelector(
-          `.ThreadSummary_imageWrapper__bW8PL:has(img[src="${videoInfo.thumbnail}"]) .ThreadSummary_videoOverlay__iQdee`,
-          { state: "visible", timeout: 5000 }
-        );
-
-        if (!overlay) {
-          console.log(
-            `Could not find overlay for video ${videoInfo.index + 1}`
-          );
-          continue;
-        }
-
-        // Click vào overlay và đợi lightbox
-        await Promise.all([
-          page.waitForSelector(".Lightbox_overlay__FjCin", {
-            state: "visible",
-            timeout: 5000,
-          }),
-          overlay.click(),
-        ]);
-
-        // Đợi video load xong
-        await page.waitForSelector(
-          ".Lightbox_imageContainer__nCcNw video.Lightbox_media__1JER5",
-          { state: "visible", timeout: 5000 }
-        );
-
-        // Lấy video source
-        const videoSrc = await page.$eval(
-          ".Lightbox_imageContainer__nCcNw video.Lightbox_media__1JER5",
-          (video) => video.getAttribute("src")
-        );
-
-        if (videoSrc) {
-          videoMap.set(videoInfo.thumbnail, videoSrc);
-          console.log(`Found video ${videoInfo.index + 1}:`, {
-            thumbnail: videoInfo.thumbnail,
-            videoSrc,
-          });
-        }
-
-        // Đóng lightbox và đợi nó biến mất
-        await Promise.all([
-          page.waitForSelector(".Lightbox_overlay__FjCin", {
-            state: "hidden",
-            timeout: 5000,
-          }),
-          page.click(".Lightbox_closeButton__vwqTO"),
-        ]);
-
-        // Đợi một chút để tránh race condition
-        await page.waitForTimeout(1000);
-      } catch (error) {
-        console.error(`Error processing video ${videoInfo.index + 1}:`, error);
-        // Đảm bảo lightbox được đóng nếu có lỗi
+    const html = await fetchWithRetry(url);
+    const $ = cheerio.load(html);
+    const content = html;
+    
+    // Find video data in script tags
+    $('script').each((_, script) => {
+      const content = $(script).html() || '';
+      
+      // Look for tweet data that contains media array
+      if (content.includes('"media":[')) {
         try {
-          await page.click(".Lightbox_closeButton__vwqTO");
-        } catch (e) {
-          // Ignore error if lightbox is already closed
+          // Extract the media array
+          const mediaMatch = content.match(/"media":\s*(\[[^\]]+\])/);
+          if (mediaMatch) {
+            const mediaArray = JSON.parse(mediaMatch[1]);
+            mediaArray.forEach((media: any) => {
+              // Check if this is a video with both URL and thumbnail
+              if (media.type === 'video' && media.url && media.thumbnail) {
+                videoMap.set(media.thumbnail, media.url);
+                console.log(`Found video in script data:`, {
+                  thumbnail: media.thumbnail,
+                  videoUrl: media.url,
+                });
+              }
+            });
+          }
+        } catch (error) {
+          // Ignore JSON parse errors
         }
-        continue;
       }
+      
+      // Also look for direct video URLs in the script content
+      const videoUrlMatches = content.match(/https:\/\/video\.twimg\.com\/[^"'\s]+\.mp4(\?tag=\d+)?/g);
+      if (videoUrlMatches) {
+        videoUrlMatches.forEach(videoUrl => {
+          // Find thumbnail URL that appears before this video URL
+          const thumbnailMatch = content.match(new RegExp(`"(https://pbs.twimg.com/[^"]+)"[^}]*"${videoUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`));
+          if (thumbnailMatch && thumbnailMatch[1]) {
+            videoMap.set(thumbnailMatch[1], videoUrl);
+            console.log(`Found direct video URL in script:`, {
+              thumbnail: thumbnailMatch[1],
+              videoUrl,
+            });
+          }
+        });
+      }
+    });
+
+    // If no videos found in scripts, look for video thumbnails and try to construct video URLs
+    if (videoMap.size === 0) {
+      $('.ThreadSummary_paragraph__Dc48l').each((_, paragraph) => {
+        const $paragraph = $(paragraph);
+        const $videoWrapper = $paragraph.find('.ThreadSummary_imageWrapper__bW8PL.ThreadSummary_imageWrapperSingle__SS2g9');
+        
+        if ($videoWrapper.length > 0 && $videoWrapper.find('.ThreadSummary_videoOverlay__iQdee').length > 0) {
+          const $thumbnail = $videoWrapper.find('.ThreadSummary_image__C1Oqn');
+          const thumbnailUrl = $thumbnail.attr('src');
+          
+          if (thumbnailUrl) {
+            // Try to construct video URL from thumbnail URL pattern
+            // Example: 
+            // Thumbnail: https://pbs.twimg.com/amplify_video_thumb/1234567890/img/abcdef.jpg
+            // Video: https://video.twimg.com/amplify_video/1234567890/vid/1280x720/abcdef.mp4
+            const match = thumbnailUrl.match(/amplify_video_thumb\/(\d+)\/img/);
+            if (match) {
+              const videoId = match[1];
+              // Search for the actual video URL in the script content
+              const videoUrlRegex = new RegExp(`https://video\\.twimg\\.com/amplify_video/${videoId}/vid/avc1/[^"'\\s]+\\.mp4\\?tag=\\d+`);
+              const videoUrlMatch = content.match(videoUrlRegex);
+              
+              if (videoUrlMatch) {
+                videoMap.set(thumbnailUrl, videoUrlMatch[0]);
+                console.log(`Found video URL from thumbnail:`, {
+                  thumbnail: thumbnailUrl,
+                  videoUrl: videoUrlMatch[0],
+                });
+              }
+            }
+          }
+        }
+      });
     }
 
     return videoMap;
   } catch (error) {
     console.error("Error getting video URLs:", error);
     return videoMap;
-  } finally {
-    await browser.close();
   }
 }
 
