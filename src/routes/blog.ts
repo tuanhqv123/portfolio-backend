@@ -66,90 +66,68 @@ async function getVideoUrlsFromPage(url: string): Promise<Map<string, string>> {
   try {
     const html = await fetchWithRetry(url);
     const $ = cheerio.load(html);
-    const content = html;
-    
-    // Find video data in script tags
-    $('script').each((_, script) => {
-      const content = $(script).html() || '';
-      
-      // Look for tweet data that contains media array
-      if (content.includes('"media":[')) {
-        try {
-          // Extract the media array
-          const mediaMatch = content.match(/"media":\s*(\[[^\]]+\])/);
-          if (mediaMatch) {
-            const mediaArray = JSON.parse(mediaMatch[1]);
-            mediaArray.forEach((media: any) => {
-              // Check if this is a video with both URL and thumbnail
-              if (media.type === 'video' && media.url && media.thumbnail) {
-                videoMap.set(media.thumbnail, media.url);
-                console.log(`Found video in script data:`, {
-                  thumbnail: media.thumbnail,
-                  videoUrl: media.url,
-                });
-              }
-            });
-          }
-        } catch (error) {
-          // Ignore JSON parse errors
-        }
-      }
-      
-      // Also look for direct video URLs in the script content
-      const videoUrlMatches = content.match(/https:\/\/video\.twimg\.com\/[^"'\s]+\.mp4(\?tag=\d+)?/g);
-      if (videoUrlMatches) {
-        videoUrlMatches.forEach(videoUrl => {
-          // Find thumbnail URL that appears before this video URL
-          const thumbnailMatch = content.match(new RegExp(`"(https://pbs.twimg.com/[^"]+)"[^}]*"${videoUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`));
-          if (thumbnailMatch && thumbnailMatch[1]) {
-            videoMap.set(thumbnailMatch[1], videoUrl);
-            console.log(`Found direct video URL in script:`, {
-              thumbnail: thumbnailMatch[1],
-              videoUrl,
-            });
-          }
-        });
-      }
-    });
 
-    // If no videos found in scripts, look for video thumbnails and try to construct video URLs
-    if (videoMap.size === 0) {
-      $('.ThreadSummary_paragraph__Dc48l').each((_, paragraph) => {
-        const $paragraph = $(paragraph);
-        const $videoWrapper = $paragraph.find('.ThreadSummary_imageWrapper__bW8PL.ThreadSummary_imageWrapperSingle__SS2g9');
-        
-        if ($videoWrapper.length > 0 && $videoWrapper.find('.ThreadSummary_videoOverlay__iQdee').length > 0) {
-          const $thumbnail = $videoWrapper.find('.ThreadSummary_image__C1Oqn');
-          const thumbnailUrl = $thumbnail.attr('src');
-          
-          if (thumbnailUrl) {
-            // Try to construct video URL from thumbnail URL pattern
-            // Example: 
-            // Thumbnail: https://pbs.twimg.com/amplify_video_thumb/1234567890/img/abcdef.jpg
-            // Video: https://video.twimg.com/amplify_video/1234567890/vid/1280x720/abcdef.mp4
-            const match = thumbnailUrl.match(/amplify_video_thumb\/(\d+)\/img/);
-            if (match) {
-              const videoId = match[1];
-              // Search for the actual video URL in the script content
-              const videoUrlRegex = new RegExp(`https://video\\.twimg\\.com/amplify_video/${videoId}/vid/avc1/[^"'\\s]+\\.mp4\\?tag=\\d+`);
-              const videoUrlMatch = content.match(videoUrlRegex);
-              
-              if (videoUrlMatch) {
-                videoMap.set(thumbnailUrl, videoUrlMatch[0]);
-                console.log(`Found video URL from thumbnail:`, {
-                  thumbnail: thumbnailUrl,
-                  videoUrl: videoUrlMatch[0],
-                });
-              }
-            }
-          }
+    // Tìm tất cả các video URLs trong HTML content
+    const videoUrlMatches = html.match(/https:\/\/video\.twimg\.com\/(?:ext_tw_video|amplify_video)\/[^"'\s]+\.mp4\?tag=\d+/g);
+    if (videoUrlMatches) {
+      // Tìm tất cả các thumbnails
+      const thumbnails: string[] = [];
+      $('.ThreadSummary_image__C1Oqn').each((_, img) => {
+        const src = $(img).attr('src');
+        if (src) thumbnails.push(src);
+      });
+
+      // Map thumbnails với video URLs
+      videoUrlMatches.forEach((videoUrl, index) => {
+        if (thumbnails[index]) {
+          videoMap.set(thumbnails[index], videoUrl);
+          console.log('Found video:', {
+            thumbnail: thumbnails[index],
+            videoUrl
+          });
         }
       });
     }
 
+    // Backup: Tìm trong các thẻ video
+    if (videoMap.size === 0) {
+      $('video').each((_, video) => {
+        const $video = $(video);
+        const videoUrl = $video.attr('src');
+        const poster = $video.attr('poster');
+        
+        if (videoUrl && poster) {
+          videoMap.set(poster, videoUrl);
+          console.log('Found video from video tag:', {
+            thumbnail: poster,
+            videoUrl
+          });
+        }
+      });
+    }
+
+    // Backup 2: Tìm trong Lightbox
+    if (videoMap.size === 0) {
+      const lightboxContent = html.match(/class="Lightbox_media__1JER5"[^>]*src="([^"]+)"/);
+      if (lightboxContent && lightboxContent[1]) {
+        const videoUrl = lightboxContent[1];
+        // Tìm thumbnail tương ứng
+        const $img = $('.ThreadSummary_image__C1Oqn').first();
+        const thumbnail = $img.attr('src');
+        
+        if (thumbnail) {
+          videoMap.set(thumbnail, videoUrl);
+          console.log('Found video from Lightbox:', {
+            thumbnail,
+            videoUrl
+          });
+        }
+      }
+    }
+
     return videoMap;
   } catch (error) {
-    console.error("Error getting video URLs:", error);
+    console.error('Error getting video URLs:', error);
     return videoMap;
   }
 }
